@@ -1,0 +1,3 @@
+# Core
+click==7.0
+halo==0.0.29
