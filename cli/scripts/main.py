@@ -28,7 +28,7 @@ def get_auth_code():
 def  exchange_code_for_token():
     pass
 
-def refresh 
+#def refresh 
 
 @click.command()
 def register():
