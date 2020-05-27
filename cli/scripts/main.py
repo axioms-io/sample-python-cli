@@ -31,6 +31,9 @@ class SlowDownError(SampleError):
 class AuthPendingError(SampleError):
     '''Error raised when poll can continue after interval'''
 
+class FourHundredError(SampleError):
+    '''Error in which response from request is 400 or greater'''
+
 @click.group()
 def cli():
     pass
@@ -52,11 +55,15 @@ def login():
     scope = 'openid profile email orgs roles permissions offline_response'
     client_data = {'client_id': C_ID, 'scope': scope}
     url = 'https://{}/oauth2/device'.format(TENANT_DOMAIN)
-    device_resp = requests.post(url, data=client_data, timeout=15, verify=False)
-    device_dict = Box(device_resp.json())
+    try:
+        device_resp = requests.post(url, data=client_data, timeout=15, verify=False)
+        device_dict = Box(device_resp.json())
+        if device_resp.status_code >= 400:
+            raise FourHundredError('Something went wrong.')
+    except FourHundredError as e:
+        print(f'[bold red]{e.message}[/bold red]')
     #print(device_dict)
     exchange_code_for_token(device_dict)
-    # add try except to handle error
 
 def poll(url, req_data, interval, time_out):
     # Polls to tenant domain and requests access_token
@@ -76,10 +83,10 @@ def poll(url, req_data, interval, time_out):
             elif token_dict.error == 'authorization_pending':
                 raise AuthPendingError("Continuing polling after interval.")
         except AccessDeniedError as e:
-            print(f'[bold magenta]{e.message}[/bold magenta]')
+            print(f'[bold red]{e.message}[/bold red]')
             break
         except ExpiredTokenError as e:
-            print(f'[bold magenta]{e.message}[/bold magenta]')
+            print(f'[bold red]{e.message}[/bold red]')
             break
         except SlowDownError as e:
             #print(e.message)
@@ -92,8 +99,6 @@ def poll(url, req_data, interval, time_out):
 
 def  exchange_code_for_token(response):
     # Getting necessary variables 
-    # use python box package
-    # resp_dict = response.json()
     device_code = response.device_code
     user_code = response.user_code
     verification_uri = response.verification_uri
@@ -113,9 +118,6 @@ def  exchange_code_for_token(response):
     time_out = time.time() + expire
     time.sleep(interval)
     token_dict = poll(url, req_data, interval, time_out)
-    print(f'Program fini\n{token_dict}')
-
-#def refresh 
 
 @click.command()
 def register():
@@ -128,20 +130,3 @@ def register():
 cli.add_command(info)
 cli.add_command(login)
 cli.add_command(register)
-
-# if __name__ == '__main__':
-#     cli()
-
-#######################################################################################
-# This should happen before client prompts user to login, check auth endpoint in devhub
-# after user has logged in, they will get sent to a callback url, at 
-# which point this POST requests using client_id and scope to get device code
-# to the device endpoint
-# use a timeout parameter in request
-# device_resp should have device code, user code, verification, etc
-# this should then show the user the user code and verification uri, which the
-# the user should go to to enter the code. during this, this should poll token 
-# endpoint {tnant domain}/oauth2/token with device code
-# device_data = {grant_type: , device_code: , client_id: }
-# token_resp = request.post('{tenant domain}/oauth2/token', data=device_data)
-# response from this will vary, check docs
