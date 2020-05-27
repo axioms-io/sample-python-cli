@@ -4,9 +4,9 @@ from halo import Halo
 import requests
 import os
 import dotenv
-import polling
 import time
 from box import Box
+from rich import print
 
 dotenv.load_dotenv('/mnt/g/work/Axioms/sample-python-cli/.env')
 C_ID = os.getenv('CLIENT_ID')
@@ -51,12 +51,44 @@ def login():
     # Beginning post request to device endpoint to obtain device_code, user_code, etc
     scope = 'openid profile email orgs roles permissions offline_response'
     client_data = {'client_id': C_ID, 'scope': scope}
-    url = "https://{}/oauth2/device".format(TENANT_DOMAIN)
+    url = 'https://{}/oauth2/device'.format(TENANT_DOMAIN)
     device_resp = requests.post(url, data=client_data, timeout=15, verify=False)
     device_dict = Box(device_resp.json())
-    print(device_dict)
+    #print(device_dict)
     exchange_code_for_token(device_dict)
     # add try except to handle error
+
+def poll(url, req_data, interval, time_out):
+    # Polls to tenant domain
+    while True:
+        try:
+            token_resp = requests.post(url, data=req_data, verify=False)
+            token_dict = Box(token_resp.json())
+            if 'error' not in token_dict:
+                print(f'[bold blue]Authorization successful!!![/bold blue]')
+                break
+            if token_dict.error == 'access_denied':
+                raise AccessDeniedError("Access has been denied.")
+            elif token_dict.error == 'expired_token' or time.time() >= time_out:
+                raise ExpiredTokenError('Time has expired, please try again.')
+            elif token_dict.error == 'slow_down':
+                raise SlowDownError('Increasing interval time by 5 seconds.')
+            elif token_dict.error == 'authorization_pending':
+                raise AuthPendingError("Continuing polling after interval.")
+        except AccessDeniedError as e:
+            print(f'[bold magenta]{e.message}[/bold magenta]')
+            break
+        except ExpiredTokenError as e:
+            print(f'[bold magenta]{e.message}[/bold magenta]')
+            break
+        except SlowDownError as e:
+            #print(e.message)
+            interval += 5
+        except AuthPendingError as e:
+            #print(e.message)
+            pass     
+        time.sleep(interval)
+    return token_dict
 
 def  exchange_code_for_token(response):
     # Getting necessary variables 
@@ -74,41 +106,14 @@ def  exchange_code_for_token(response):
     click.echo(f'➡️  Please follow the instructions on the following page: {verification_uri_complete}')
     webbrowser.open_new(verification_uri_complete)  
     # Polling device code to token endpoint to get access token
-    url = "https://{}/oauth2/token".format(TENANT_DOMAIN)
+    url = 'https://{}/oauth2/token'.format(TENANT_DOMAIN)
     req_data = {'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
                 'device_code': device_code, 
                 'client_id': C_ID}
     time_out = time.time() + expire
-    time.sleep(3)
-    while True:
-        try:
-            token_resp = requests.post(url, data=req_data, verify=False)
-            token_dict = Box(token_resp.json())
-            if 'error' not in token_dict:
-                break
-            if token_dict.error == 'access_denied':
-                raise AccessDeniedError("Access has been denied.")
-            elif token_dict.error == 'expired_token':
-                raise ExpiredTokenError("Time has expired, please try again.")
-            elif token_dict.error == 'slow_down':
-                raise SlowDownError("Increasing interval time by 5 seconds.")
-            elif token_dict.error == 'authorization_pending':
-                raise AuthPendingError("Continuing polling after interval.")
-        except AccessDeniedError as e:
-            print(e.message)
-            break
-        except ExpiredTokenError as e:
-            print(e.message)
-            break
-        except SlowDownError as e:
-            print(e.message)
-            interval += 5
-        except AuthPendingError as e:
-            print(e.message)
-
-        time.sleep(interval)
-
-    print(token_resp.json())
+    time.sleep(interval)
+    token_dict = poll(url, req_data, interval, time_out)
+    print(f'Program fini\n{token_dict}')
 
 #def refresh 
 
@@ -116,7 +121,7 @@ def  exchange_code_for_token(response):
 def register():
     """Asks user to register to Axioms by opening Axiom registration page"""
     click.echo('➡️  Opening registration page')
-    url = "https://{}/register".format(TENANT_DOMAIN)
+    url = 'https://{}/register'.format(TENANT_DOMAIN)
     webbrowser.open_new(url)
     click.echo('➡️ After registration run ax login or axioms login')
 
