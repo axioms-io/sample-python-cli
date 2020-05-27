@@ -59,7 +59,7 @@ def login():
     # add try except to handle error
 
 def poll(url, req_data, interval, time_out):
-    # Polls to tenant domain
+    # Polls to tenant domain and requests access_token
     while True:
         try:
             token_resp = requests.post(url, data=req_data, verify=False)
@@ -145,9 +145,3 @@ cli.add_command(register)
 # device_data = {grant_type: , device_code: , client_id: }
 # token_resp = request.post('{tenant domain}/oauth2/token', data=device_data)
 # response from this will vary, check docs
-# try:
-    #     token_response = polling.poll(lambda: requests.post(url, data=req_data, verify=False),    
-    #                                 timeout=expire, 
-    #                                 step=interval)
-    # except polling.TimeoutException:
-    #     click.echo('Time out error. Please try again.') 
