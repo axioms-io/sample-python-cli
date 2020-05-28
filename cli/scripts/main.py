@@ -11,6 +11,7 @@ from rich import print
 dotenv.load_dotenv('/mnt/g/work/Axioms/sample-python-cli/.env')
 C_ID = os.getenv('CLIENT_ID')
 TENANT_DOMAIN = os.getenv('TENANT_DOMAIN')
+TOKEN_DIR = os.getenv('TOKEN_DIR')
 
 spinner = Halo(text='Loading', spinner='dots')
 
@@ -55,6 +56,7 @@ def login():
     scope = 'openid profile email orgs roles permissions offline_response'
     client_data = {'client_id': C_ID, 'scope': scope}
     url = 'https://{}/oauth2/device'.format(TENANT_DOMAIN)
+    check_device_code = 1
     try:
         device_resp = requests.post(url, data=client_data, timeout=15, verify=False)
         device_dict = Box(device_resp.json())
@@ -62,11 +64,24 @@ def login():
             raise FourHundredError('Something went wrong.')
     except FourHundredError as e:
         print(f'[bold red]{e.message}[/bold red]')
+        check_device_code = 0
+    if check_device_code == 0:
+        return
     #print(device_dict)
-    exchange_code_for_token(device_dict)
+    token_dict = exchange_code_for_token(device_dict)
+    # Putting the token in seperate dir
+    if token_dict != 0:
+        token_loc = '{}/tokens'.format(TOKEN_DIR)
+        with open(token_loc, 'w') as f:
+            f.write(token_dict.access_token)
+            f.write('\n')
+            f.write(token_dict.token_type)
+        print(token_dict)
+    return
 
 def poll(url, req_data, interval, time_out):
     # Polls to tenant domain and requests access_token
+    check_access = 1
     while True:
         try:
             token_resp = requests.post(url, data=req_data, verify=False)
@@ -84,9 +99,11 @@ def poll(url, req_data, interval, time_out):
                 raise AuthPendingError("Continuing polling after interval.")
         except AccessDeniedError as e:
             print(f'[bold red]{e.message}[/bold red]')
+            check_access = 0
             break
         except ExpiredTokenError as e:
             print(f'[bold red]{e.message}[/bold red]')
+            check_access = 0
             break
         except SlowDownError as e:
             #print(e.message)
@@ -95,6 +112,8 @@ def poll(url, req_data, interval, time_out):
             #print(e.message)
             pass     
         time.sleep(interval)
+    if check_access == 0: 
+        return 0
     return token_dict
 
 def  exchange_code_for_token(response):
@@ -109,15 +128,17 @@ def  exchange_code_for_token(response):
     # Opening the browser (or providing url in the event browser does not open) to verification uri where user enters the user_code
     # use verifciation uri complete for convenience
     click.echo(f'➡️  Please follow the instructions on the following page: {verification_uri_complete}')
+    print(f'[bold magenta]If webpage does not open, please input the following code [bold green]{user_code}[/bold green] to the link:[/bold magenta] [bold blue]{verification_uri}[/bold blue]')
     webbrowser.open_new(verification_uri_complete)  
     # Polling device code to token endpoint to get access token
     url = 'https://{}/oauth2/token'.format(TENANT_DOMAIN)
     req_data = {'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
                 'device_code': device_code, 
                 'client_id': C_ID}
-    time_out = time.time() + expire
+    time_out = time.time() + 5
     time.sleep(interval)
     token_dict = poll(url, req_data, interval, time_out)
+    return token_dict
 
 @click.command()
 def register():
