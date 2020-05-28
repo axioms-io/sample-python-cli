@@ -7,6 +7,7 @@ import dotenv
 import time
 from box import Box
 from rich import print
+from rich.table import Table, Column
 
 dotenv.load_dotenv('/mnt/g/work/Axioms/sample-python-cli/.env')
 C_ID = os.getenv('CLIENT_ID')
@@ -69,6 +70,7 @@ def login():
         return
     #print(device_dict)
     token_dict = exchange_code_for_token(device_dict)
+    
     # Putting the token in seperate dir
     if token_dict != 0:
         token_loc = '{}/tokens'.format(TOKEN_DIR)
@@ -76,7 +78,7 @@ def login():
             f.write(token_dict.access_token)
             f.write('\n')
             f.write(token_dict.token_type)
-        print(token_dict)
+        #print(token_dict)
     return
 
 def poll(url, req_data, interval, time_out):
@@ -128,8 +130,14 @@ def  exchange_code_for_token(response):
     # Opening the browser (or providing url in the event browser does not open) to verification uri where user enters the user_code
     # use verifciation uri complete for convenience
     click.echo(f'➡️  Please follow the instructions on the following page: {verification_uri_complete}')
-    print(f'[bold magenta]If webpage does not open, please input the following code [bold green]{user_code}[/bold green] to the link:[/bold magenta] [bold blue]{verification_uri}[/bold blue]')
+    print(f'[bold magenta]If webpage does not open, please input the following code after opening the url provided below:')
+    uc_table = Table(show_header=True, header_style='bold blue')
+    uc_table.add_column('Code')
+    uc_table.add_column('URL')
+    uc_table.add_row(f'[bold green]{user_code}[/bold green]', f'[bold blue]{verification_uri}[/bold blue]')
+    print(uc_table)
     webbrowser.open_new(verification_uri_complete)  
+    
     # Polling device code to token endpoint to get access token
     url = 'https://{}/oauth2/token'.format(TENANT_DOMAIN)
     req_data = {'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
