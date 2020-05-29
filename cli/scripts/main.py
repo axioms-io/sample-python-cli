@@ -143,7 +143,7 @@ def  exchange_code_for_token(response):
     req_data = {'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
                 'device_code': device_code, 
                 'client_id': C_ID}
-    time_out = time.time() + 5
+    time_out = time.time() + expire
     time.sleep(interval)
     token_dict = poll(url, req_data, interval, time_out)
     return token_dict
