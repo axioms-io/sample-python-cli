@@ -8,11 +8,33 @@ import time
 from box import Box
 from rich import print
 from rich.table import Table, Column
+# from click_configfile import ConfigFileReader, Param, SectionSchema, matches_section
+
+# class ConfigFileLayout(object):
+#     @matches_section('client_id'):
+#     class Client_id(SectionSchema):
+#         C_ID = Param(type=str)
+#         TENANT_DOMAIN = Param(type=str) 
+        
+#     @matches_section('user')
+#     class Access_token(SectionSchema):
+#         header = Param(type=str)
+#         token = Param(type=str)
+    
+# class ConfigFileFinder(ConfigFileReader):
+#     cfg_files = ['token.cfg']
+#     cfg_schema = [
+#         ConfigFileLayout.Client_id,
+#         ConfigFileLayout.Access_token
+#     ]
+
+# CONTEXT_SETTINGS = dict(default_map=ConfigFileFinder.read_config())
 
 dotenv.load_dotenv('/mnt/g/work/Axioms/sample-python-cli/.env')
 C_ID = os.getenv('CLIENT_ID')
 TENANT_DOMAIN = os.getenv('TENANT_DOMAIN')
 TOKEN_DIR = os.getenv('TOKEN_DIR')
+RESOURCE_URL = 'https://shafi-sample-flask-app.herokuapp.com/'
 
 spinner = Halo(text='Loading', spinner='dots')
 
@@ -47,12 +69,17 @@ def info():
                'Tenant configurations, OpenID Connect Configurations, Users,'
                'directly from your favourite terminal.')
 
-@click.command()
-def login():
+@click.command() # add this when using click config: context_settings=CONTEXT_SETTINGS
+#@click.pass_context 
+def login(): #add the parameter ctx here when using click config
     """Asks user to login to Axioms account by opening Axiom login page"""
     # Begins login process
     click.echo('➡️  Starting Authorization')
-    
+    # for data in context.default_map.keys():
+    #     if data.starts_with('client_id'):
+    #         client_info = context.default_map[data]
+    # c_id = client_info['client_id']
+    # token_domain = client_info['token_domain']
     # Beginning post request to device endpoint to obtain device_code, user_code, etc
     scope = 'openid profile email orgs roles permissions offline_response'
     client_data = {'client_id': C_ID, 'scope': scope}
@@ -156,6 +183,90 @@ def register():
     webbrowser.open_new(url)
     click.echo('➡️ After registration run ax login or axioms login')
 
+@click.command()
+@click.argument('req', default='get')
+def public(req):
+    """Resource from public endpoint, can only use get request"""
+    if req == 'get':
+        resp = requests.get('{}/public'.format(RESOURCE_URL), timeout=10)
+        resp_dict = Box(resp.json())
+        print(f'[bold blue]{resp_dict.message}[/bold blue]')
+    else:
+        print(f'[bold magenta]Invalid request to this endpoint.[/bold magenta]')
+    return
+
+@click.command()
+@click.argument('req', default='get')
+def private(req):
+    """Resource from private endpoint, can only use get request"""
+    token_loc = '{}/tokens'.format(TOKEN_DIR)
+    with open(token_loc, 'r') as f:
+        access_token = f.readline()
+    if req == 'get':
+        resp = requests.get('{}/private'.format(RESOURCE_URL), headers={'Authorization': 'Bearer {}'.format(access_token.strip('\n'))}, timeout=10)
+        resp_dict = Box(resp.json())
+        if 'message' in resp_dict: 
+            print(f'[bold blue]{resp_dict.message}[/bold blue]')
+        else:
+            print(f'[bold magenta]{resp_dict}[/bold magenta]')
+    else:
+        print(f'[bold magenta]Invalid request to this endpoint.[/bold magenta]')
+    return
+
+@click.command()
+@click.argument('req', default='get')
+def permission(req):
+    """Resource from permission endpoint, can use get, post, patch and delete requests"""
+    token_loc = '{}/tokens'.format(TOKEN_DIR)
+    with open(token_loc, 'r') as f:
+        access_token = f.readline()
+    req_data = {'Authorization': 'Bearer {}'.format(access_token.strip('\n'))}
+    if req == 'get':
+        resp = requests.get('{}/permission'.format(RESOURCE_URL), headers=req_data, timeout=10)
+    elif req == 'post':
+        resp = requests.post('{}/permission'.format(RESOURCE_URL), data=req_data, timeout=10)
+    elif req == 'patch':
+        resp = requests.patch('{}/permission'.format(RESOURCE_URL), data=req_data, timeout=10)
+    elif req == 'delete':
+        resp = requests.delete('{}/permission'.format(RESOURCE_URL), data=req_data, timeout=10)
+    else:
+        print(f'[bold magenta]Invalid request to this endpoint.[/bold magenta]')
+    resp_dict = Box(resp.json())
+    if 'message' in resp_dict: 
+        print(f'[bold blue]{resp_dict.message}[/bold blue]')
+    else:
+        print(f'[bold magenta]{resp_dict}[/bold magenta]')
+    return
+
+@click.command()
+@click.argument('req', default='get')
+def role(req):
+    """Resource from role endpoint, can use get, post, patch and delete requests"""
+    token_loc = '{}/tokens'.format(TOKEN_DIR)
+    with open(token_loc, 'r') as f:
+        access_token = f.readline()
+    req_data = {'Authorization': 'Bearer {}'.format(access_token.strip('\n'))}
+    if req == 'get':
+        resp = requests.get('{}/role'.format(RESOURCE_URL), headers=req_data, timeout=10)
+    elif req == 'post':
+        resp = requests.post('{}/role'.format(RESOURCE_URL), data=req_data, timeout=10)
+    elif req == 'patch':
+        resp = requests.patch('{}/role'.format(RESOURCE_URL), data=req_data, timeout=10)
+    elif req == 'delete':
+        resp = requests.delete('{}/role'.format(RESOURCE_URL), data=req_data, timeout=10)
+    else:
+        print(f'[bold magenta]Invalid request to this endpoint.[/bold magenta]')
+    resp_dict = Box(resp.json())
+    if 'message' in resp_dict: 
+        print(f'[bold blue]{resp_dict.message}[/bold blue]')
+    else:
+        print(f'[bold magenta]{resp_dict}[/bold magenta]')
+    return
+
 cli.add_command(info)
 cli.add_command(login)
 cli.add_command(register)
+cli.add_command(public)
+cli.add_command(private)
+cli.add_command(permission)
+cli.add_command(role)
