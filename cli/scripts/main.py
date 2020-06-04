@@ -35,7 +35,7 @@ C_ID = os.getenv('CLIENT_ID')
 TENANT_DOMAIN = os.getenv('TENANT_DOMAIN')
 TOKEN_DIR = os.getenv('TOKEN_DIR')
 RESOURCE_URL = 'https://shafi-sample-flask-app.herokuapp.com/'
-
+#ACCESS_TOKEN = None
 spinner = Halo(text='Loading', spinner='dots')
 
 # Errors/exceptions that are being used for the program
@@ -97,14 +97,14 @@ def login(): #add the parameter ctx here when using click config
         return
     #print(device_dict)
     token_dict = exchange_code_for_token(device_dict)
-    
+    # ACCESS_TOKEN = token_dict.
     # Putting the token in seperate dir
     if token_dict != 0:
         token_loc = '{}/tokens'.format(TOKEN_DIR)
         with open(token_loc, 'w') as f:
-            f.write(token_dict.access_token)
-            f.write('\n')
-            f.write(token_dict.token_type)
+            f.write(token_dict.access_token.rstrip('\r\n'))
+            # f.write('\n')
+            # f.write(token_dict.token_type)
         #print(token_dict)
     return
 
@@ -201,10 +201,11 @@ def private(req):
     """Resource from private endpoint, can only use get request"""
     token_loc = '{}/tokens'.format(TOKEN_DIR)
     with open(token_loc, 'r') as f:
-        access_token = f.readline()
+        access_token = f.read().replace('\n', '')
     if req == 'get':
-        resp = requests.get('{}/private'.format(RESOURCE_URL), headers={'Authorization': 'Bearer {}'.format(access_token.strip('\n'))}, timeout=10)
+        resp = requests.get('{}/private'.format(RESOURCE_URL), headers={'Authorization': 'Bearer {}'.format(access_token)}, timeout=10)
         resp_dict = Box(resp.json())
+        print(access_token)
         if 'message' in resp_dict: 
             print(f'[bold blue]{resp_dict.message}[/bold blue]')
         else:
@@ -249,11 +250,11 @@ def role(req):
     if req == 'get':
         resp = requests.get('{}/role'.format(RESOURCE_URL), headers=req_data, timeout=10)
     elif req == 'post':
-        resp = requests.post('{}/role'.format(RESOURCE_URL), data=req_data, timeout=10)
+        resp = requests.post('{}/role'.format(RESOURCE_URL), headers=req_data, timeout=10)
     elif req == 'patch':
-        resp = requests.patch('{}/role'.format(RESOURCE_URL), data=req_data, timeout=10)
+        resp = requests.patch('{}/role'.format(RESOURCE_URL), headers=req_data, timeout=10)
     elif req == 'delete':
-        resp = requests.delete('{}/role'.format(RESOURCE_URL), data=req_data, timeout=10)
+        resp = requests.delete('{}/role'.format(RESOURCE_URL), headers=req_data, timeout=10)
     else:
         print(f'[bold magenta]Invalid request to this endpoint.[/bold magenta]')
     resp_dict = Box(resp.json())
