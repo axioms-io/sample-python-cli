@@ -35,7 +35,7 @@ C_ID = os.getenv('CLIENT_ID')
 TENANT_DOMAIN = os.getenv('TENANT_DOMAIN')
 TOKEN_DIR = os.getenv('TOKEN_DIR')
 RESOURCE_URL = 'https://shafi-sample-flask-app.herokuapp.com/'
-#ACCESS_TOKEN = None
+
 spinner = Halo(text='Loading', spinner='dots')
 
 # Errors/exceptions that are being used for the program
@@ -97,7 +97,7 @@ def login(): #add the parameter ctx here when using click config
         return
     #print(device_dict)
     token_dict = exchange_code_for_token(device_dict)
-    # ACCESS_TOKEN = token_dict.
+
     # Putting the token in seperate dir
     if token_dict != 0:
         token_loc = '{}/tokens'.format(TOKEN_DIR)
@@ -205,7 +205,6 @@ def private(req):
     if req == 'get':
         resp = requests.get('{}/private'.format(RESOURCE_URL), headers={'Authorization': 'Bearer {}'.format(access_token)}, timeout=10)
         resp_dict = Box(resp.json())
-        print(access_token)
         if 'message' in resp_dict: 
             print(f'[bold blue]{resp_dict.message}[/bold blue]')
         else:
@@ -225,11 +224,11 @@ def permission(req):
     if req == 'get':
         resp = requests.get('{}/permission'.format(RESOURCE_URL), headers=req_data, timeout=10)
     elif req == 'post':
-        resp = requests.post('{}/permission'.format(RESOURCE_URL), data=req_data, timeout=10)
+        resp = requests.post('{}/permission'.format(RESOURCE_URL), headers=req_data, timeout=10)
     elif req == 'patch':
-        resp = requests.patch('{}/permission'.format(RESOURCE_URL), data=req_data, timeout=10)
+        resp = requests.patch('{}/permission'.format(RESOURCE_URL), headers=req_data, timeout=10)
     elif req == 'delete':
-        resp = requests.delete('{}/permission'.format(RESOURCE_URL), data=req_data, timeout=10)
+        resp = requests.delete('{}/permission'.format(RESOURCE_URL), headers=req_data, timeout=10)
     else:
         print(f'[bold magenta]Invalid request to this endpoint.[/bold magenta]')
     resp_dict = Box(resp.json())
